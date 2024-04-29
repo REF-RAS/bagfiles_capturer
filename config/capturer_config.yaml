@@ -1,0 +1,9 @@
+# YAML file for CGRAS Imaging configuration
+---
+# Dash Agent (Capturer) setting
+capturer.dash.host: 0.0.0.0
+capturer.dash.port: 8050
+capturer.dash.debug.mode: False
+capturer.dash.launch_browser: False
+# the main system timer for the capturer implemented by Dash
+capturer.system.timer: 1  # seconds
