@@ -36,7 +36,7 @@ class YamlConfig():
         :type name: str
         :param default: the default value if nothing is found in the path, defaults to None
         :type default: any
-        :return: the value of the config
+        :return: the value of the config key
         :rtype: any
         """
         if name is None:
@@ -61,4 +61,10 @@ class YamlConfig():
         return pointer
     
     def get(self, name:str, default=None):
-        return self.query_config(name, default)
+        """ Returns the value given the origin key name at the root level 
+
+        :param name: The key name at the root level
+        :param default: The default value, defaults to None
+        :return: The value of the config key
+        """
+        return self.config.get(name, default)

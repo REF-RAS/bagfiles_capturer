@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>bagfile_capturer</name>
+  <name>bagfiles_capturer</name>
   <version>0.0.0</version>
   <description>The bagfile_capturer package</description>
 

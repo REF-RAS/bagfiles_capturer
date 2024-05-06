@@ -1,0 +1,9 @@
+<launch>
+    <arg name="mode" default=""/> 
+    <arg name="filestore"/> 
+    <include file="$(find bagfiles_capturer)/launch/main.launch">
+        <arg name="run_capturer" default="true" />  
+        <arg name="run_uploader" default="true" />            
+        <arg name="mode" default="$(arg mode)"/>  
+    </include>
+</launch>

@@ -1,0 +1,17 @@
+<launch> 
+    <arg name="mode" /> 
+    <arg name="run_capturer"/>
+    <arg name="run_uploader"/>
+        <!-- Launch the bagfiles capturer -->
+        <group if="$(arg run_capturer)"> 
+            <param name="mode" type="string" value="$(arg mode)" /> 
+            <node pkg="bagfiles_capturer" type="run.py" name="bagfiles_capturer_node" output="screen" respawn="true" >
+            </node>
+        </group>
+        <!-- Launch the gdrive uploader -->
+        <group if="$(arg run_uploader)"> 
+            <param name="mode" type="string" value="$(arg mode)" /> 
+            <node pkg="gdrive_uploader" type="run.py" name="gdrive_uploader_node" output="screen" respawn="true" >
+            </node>
+        </group>
+</launch>   

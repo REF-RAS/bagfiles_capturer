@@ -9,190 +9,80 @@ __version__ = '1.0'
 __email__ = 'ak.lui@qut.edu.au'
 __status__ = 'Development'
 
-# general modules
 import os, sys, threading, collections, time
-from enum import Enum
 
-# the global variables
 
-#### -- MODEL: system state model
-class SystemState():
-    def __init__(self, init_state):
-        self.state_lock = threading.Lock()
-        self.station_name = None
-        self.scan_id = None
-        # error related information
-        self.error_source = None
-        self.error_message = None
-        # list for storing info log messages
-        self.log_info = []
-        self.log_info_lock = threading.Lock()
-        # list for modal alert messages
-        self.alert_message = []
-        self.alert_message_lock = threading.Lock()
-        # check the status concerning if any scanning task is incomplete
-        self.state = init_state
-        self.previous_state = None
-        self.last_update_time = time.time()
-        self.changed_for_called = collections.defaultdict(lambda: False)
-        # variables
-        self.vars = dict()
-        self.vars_lock = threading.Lock()
-
-    def get_state(self, caller=None):
-        self.state_lock.acquire()
-        try:
-            if caller is not None:
-                self.changed_for_called[caller] = False
-            return self.state
-        finally:
-            self.state_lock.release()
-
-    def has_changed_state(self, caller):
-        self.state_lock.acquire()
-        try:        
-            return self.changed_for_called.get(caller, False)
-        finally:
-            self.state_lock.release()
-
-    def update_state(self, new_state, current_state=None):
-        # -- current state must match if given
-        self.state_lock.acquire()
-        try:
-            if current_state is None or self.state == current_state:
-                if self.state != new_state:
-                    for caller in self.changed_for_called.keys():
-                        self.changed_for_called[caller] = True
-                self.previous_state = self.state
-                self.state = new_state
-                self.last_update_time = time.time()
-        finally:
-            self.state_lock.release()
-            
-    def is_state(self, query_state):
-        self.state_lock.acquire()
-        try:
-            return self.state == query_state
-        finally:
-            self.state_lock.release()
-    
-    def time_lapsed_since_update(self):
-        if self.last_update_time is None:
-            return None
-        return time.time() - self.last_update_time
-    
-    def get_previous_state(self):
-        return self.previous_state
-
-    # -- alert messages
-    def add_alert_message(self, message):
-        self.alert_message_lock.acquire()
-        try:
-            self.alert_message.append(message)
-        finally:
-            self.alert_message_lock.release()
-            
-    def next_alert_message(self):
-        self.alert_message_lock.acquire()
-        try:
-            if len(self.alert_message) == 0:
-                return None
-            return self.alert_message.pop(0)
-        finally:
-            self.alert_message_lock.release()            
-    # -- info log
-    def add_log_info(self, info, max_keep=10):
-        self.log_info_lock.acquire()
-        try:
-            self.log_info.append(info)
-            max_keep = min(max_keep, len(self.log_info))
-            self.log_info = self.log_info[-max_keep:]
-        finally:
-            self.log_info_lock.release()
-    def get_log_info(self):
-        self.log_info_lock.acquire()
-        try:
-            return list(self.log_info)
-        finally:
-            self.log_info_lock.release()
-    # -- error log
-    def set_error(self, error_source, error_message):
-        self.error_source = error_source
-        self.error_message = error_message
-        
-    def clear_error(self):
-        self.error_source = self.error_message = None
-        
-    def get_error_message(self):
-        return self.error_message
-    
-    def get_error(self):
-        return self.error_source, self.error_message   
-    
-    # -- passing variables between states
-    def set_var(self, name, value):
-        self.vars_lock.acquire()
-        try:
-            self.vars[name] = value
-        finally:
-            self.vars_lock.release()
-
-    def get_var(self, name, default=None):
-        self.vars_lock.acquire()
-        try:
-            if name in self.vars:
-                return self.vars[name]
-            return default
-        finally:
-            self.vars_lock.release()
-            
-    def del_var(self, name):
-        self.vars_lock.acquire()
-        try:
-            if name in self.vars:
-                del self.vars[name]      
-        finally:
-            self.vars_lock.release()
-                
-    def __str__(self):
-        return f'state: {self.state} measurement_name: {self.station_name} scan_id: {self.scan_id}'
-
-#### -- MODEL: callback manager
+# --------------------------------------------
+# The class models callbacks and manages
+# the listener registration and calls
 class CallbackManager():
+    """ The class models callbacks and manages the listener registration and calls
+    """
     def __init__(self):
         self.callbacks = dict()
 
-    def set_listener(self, event, listener):
+    def set_listener(self, event, listener) -> None:
+        """ Set a function to be the listener for an event, which can be any immutable object
+
+        :param event: The event of any immutable type such as string
+        :param listener: The function to be called 
+        """
         self.callbacks[event] = listener
 
-    def fire_event(self, event, *args):
+    def fire_event(self, event, *args) -> None:
+        """ Invoke the listeners of the event
+
+        :param event: The event of any immutable type such as string
+        """
         if event in self.callbacks:
             self.callbacks[event](event, *args)
 
-#### -- MODEL: state manager
+# --------------------------------------------
+# The class models and manages the state
+# for a state transition machine driven
+# application
 class StateManager():
+    """ The class models and manages the state for a state transition machine driven application
+    """
     def __init__(self, initial_state=None):   
-        self.state_lock = threading.Lock()
+        self.state_lock = threading.RLock()
         self.state = initial_state
         self.info = None
         self.last_update_time = None
         self.last_change_time = None
-        # variables
+        # variables for the state
         self.vars = dict()
-        self.vars_lock = threading.Lock()
+        self.vars_lock = threading.RLock()
+
     def get(self):
+        """ Returns the current state
+        """
         self.state_lock.acquire()
         try:
             return self.state
         finally:
             self.state_lock.release()
-    def get_with_info(self):
+
+    def get_state(self):
+        """ A wrapper function for :func:`<model_base.StateManager.get>`
+        """
+        return self.get()
+
+    def get_with_info(self) -> tuple:
+        """ Returns the current state and attached info as a tuple
+        """
         self.state_lock.acquire()
         try:
             return (self.state, self.info,)
         finally:
-            self.state_lock.release()            
+            self.state_lock.release()      
+
     def update(self, new_state, info=None):
+        """ Change the state to a new state, with an option to attach an info object
+
+        :param new_state: The new state
+        :param info: The new info object, defaults to None
+        """
         self.state_lock.acquire()
         try:
             if self.state != new_state:
@@ -203,25 +93,48 @@ class StateManager():
         finally:
             self.state_lock.release()
 
-    def is_state(self, query_state):
+    def update_state(self, new_state, info=None):
+        """ A wrapper function for :func:`<model_base.StateManager.update>`
+        """        
+        self.update(new_state, info)
+
+    def is_state(self, query_state) -> bool:
+        """ Returns True if the current state is the query_state
+
+        :param query_state: The query state for matching
+        :return: True if the current state is the query_state
+        """
         self.state_lock.acquire()
         try:
             return self.state == query_state
         finally:
             self.state_lock.release()
 
-    def time_lapsed_since_update(self):
+    def time_lapsed_since_update(self) -> float:
+        """ Returns the time since the last state update even if the state has remained unchaged
+
+        :return: The time in seconds as a float
+        """
         if self.last_update_time is None:
             return None
         return time.time() - self.last_update_time
     
     def time_lapsed_since_change(self):
+        """ Returns the time since the last state change
+
+        :return: The time in seconds as a float
+        """
         if self.last_change_time is None:
             return None
         return time.time() - self.last_change_time    
     
     # -- passing variables between states
     def set_var(self, name, value):
+        """ Set a custom name value pair to the state manager 
+
+        :param name: The name of the custom variable
+        :param value: The value of the custom variable
+        """
         self.vars_lock.acquire()
         try:
             self.vars[name] = value
@@ -229,6 +142,12 @@ class StateManager():
             self.vars_lock.release()
 
     def get_var(self, name, default=None):
+        """ Retrieve the value given the name of the variable
+
+        :param name: The name of the custom variable
+        :param default: The default value, defaults to None
+        :return: The value of the stored variable or the default value if the variable name is non-existent
+        """
         self.vars_lock.acquire()
         try:
             if name in self.vars:
@@ -237,12 +156,18 @@ class StateManager():
         finally:
             self.vars_lock.release()
             
-    def del_var(self, name):
+    def del_var(self, name) -> None:
+        """ Remove the variable from the state manager
+
+        :param name: The name of the custom variable
+        """
         self.vars_lock.acquire()
         try:
             if name in self.vars:
                 del self.vars[name]      
         finally:
             self.vars_lock.release()
+
+    # The internal function for printing the state of the manager
     def __str__(self):
         return self.state

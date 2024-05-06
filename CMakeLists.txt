@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(bagfile_capturer)
+project(bagfiles_capturer)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -166,6 +166,7 @@ include_directories(
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
   setup.py
+  src/capturer/run.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

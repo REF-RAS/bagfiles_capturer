@@ -1,9 +1,23 @@
-# YAML file for CGRAS Imaging configuration
+# YAML file for Bagfile Capturer
 ---
+# Operation Mode
+capturer.mode: web # web or headless
 # Dash Agent (Capturer) setting
-capturer.dash.host: 0.0.0.0
-capturer.dash.port: 8050
-capturer.dash.debug.mode: False
-capturer.dash.launch_browser: False
-# the main system timer for the capturer implemented by Dash
+capturer.web.host: 0.0.0.0
+capturer.web.port: 8060
+capturer.web.debug.mode: True
+capturer.web.launch_browser: False
+capturer.web.auth: True   # Authentication required if web mode
+# Setting pull
+capturer.pull.gdrive.fileid: null  # null if no pull setting
+capturer.pull.cron.schedule: '*/1 * * * *'
+# Main system timers for the capturer implemented by Dash
 capturer.system.timer: 1  # seconds
+capturer.console.refresh: 5  # seconds
+# The default rostopics for bagfile capture
+capturer.rostopics.default:
+  - /armcam/infra1/image_rect_raw/compressed
+  - /cuttercam/infra1/image_rect_raw/compressed
+# The output folder for captured bagfiles
+capturer.filestore: /home/qcr/Insync/Bagfiles
+capturer.logfilestore: Logfiles
