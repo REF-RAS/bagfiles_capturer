@@ -11,7 +11,6 @@ __version__ = '1.0'
 __email__ = 'ak.lui@qut.edu.au'
 __status__ = 'Development'
 
-# The common modules
 import sqlite3
 import pandas as pd
 

@@ -1,6 +1,7 @@
 # Scheduled Bagfiles Capturer
 
-![QUT REF Collection](https://badgen.net/badge/collections/QUT%20REF-RAS?icon=github) [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+![QUT REF Collection](https://badgen.net/badge/collections/QUT%20REF-RAS?icon=github) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 
 **Robotics and Autonomous Systems Group, Research Engineering Facility, Research Infrastructure** 
 **Queensland University of Technology**
@@ -9,13 +10,15 @@
 
 The scheduled bagfiles capturer is a ROS 1 (noetic) application node that captures bag files according to a schedule. It is designed to operate autonomously and remotely, and to work with another application that uploads the captured bag files to a cloud storage (such as Google Drive)
 
-The schdule, which is part of an Excel file containing other system settings, can be live updated by pulling it from a Google Drive or by uploading through a web application.
+The schdule, which is specified in an Excel file, can be refreshed autonomously by pulling the file from a Google Drive or by uploading the file through a web application. Other system settings such as the ros topics to be recorded are also refreshed in the same way.
 
 The application can operate in web-based mode or headless mode. 
 
 In the web-based mode, users can interact with the application hrough a web interface. The interface provides a console for monitoring the application status and various web pages for updating the schedule and other bagfile capturing parameters.
 
 In the headless mode, users cannot directly interact with the application. The schedule can be updated via editing a publicly link-shared Excel file on the Google Drive. In addition, the application will write event messages to a daily log file.
+
+![System Design](docs/assets/SystemDesign.png)
 
 ## Software Requirements and Installation Guide
 
@@ -123,7 +126,7 @@ The `reset_database.py` and `clear_filestore.py` are interactive. To stop them a
 
 ## The System Settings Excel File
 
-The four worksheets of the Excel File recognized by the application include `Schedule`, `Rostopics`, and `Accounts`. Please refer to the sample file `Settings.xlsx` under the top-level folder of this repository.
+The four worksheets of the Excel File recognized by the application include `Schedule`, `Rostopics`, and `Accounts`. Please refer to the sample file `Settings.xlsx` at the root folder of this repository.
 
 ### The `Schedule` worksheet
 
@@ -138,6 +141,17 @@ This worksheet specifies the schedule of capturing bagfiles. Each row specifies 
 
 **Remind that the data format for the `date` and `time` columns must be `Plain Text`.**
 
+An example of the schedule worksheet is given below.
+
+| Date	| Time	| Duration |	Folder	| Prefix |
+| ------ | ----------- | ------ | ------ | ------- |
+| 2024/4/30	| 21:40:00	| 10 | Type_A |       |		
+| 2024/5/2	| 12:15:00	| 2m | Type_B |       |	
+| 2024/5/2	| 12:20:00	| 30 |		    | Test  |
+| 2024/5/2	| 12:25:00	| 20 |		    | Test  |
+| 2024/5/2	| 15:40:00	| 20 | Type_A	|       |
+| 2024/5/2	| 15:45:00	| 1m | Type_B	| Long  |
+
 ### The `Rostopics` worksheet
 
 This worksheet specifies the ROS topics that are to be captured in bagfiles. The worksheet uses one column called `Name` where the ROS topic names are populated.
@@ -151,7 +165,6 @@ This worksheet specifies the user name and password for authentication to enter 
 | Password   | The password in plain text | Text |
 | Name | The name of the user | Text |
 | Email | The email of the user | Text |
-
 
 ## The Web Interface
 
@@ -183,13 +196,13 @@ The web interface comprises of the `Console` page, the `Setup` page, the `Schedu
 - The `Query` page offers execution of SQL statements.
 - The `DB` page lists the content of a database table.
 
-
 ## Bagfiles Sync to a Cloud Drive
 
-Due to the feature of scheduled capture of bagfiles, this application is often operating in a remote device. There is generally a need to upload the bagfiles stored locally to a more accessible location such as a cloud drive. 
+Due to the feature of scheduled capture of bagfiles, this application is suitable operating in a remote device. There is a need to upload the bagfiles stored locally to a more accessible location such as a cloud drive. 
 
 There are many options available. Depending on the platform, there are options such Google Drive, One Drive, Dropbox, etc. 
 
+Under the REF-RAS organization, there is a QUT developed [google drive file uploader](https://github.com/REF-RAS/gdrive_uploader) that operates as a one-way file sync. Access to the repo is subject to permission. The launch file `capture_and_upload.launch` is available for starting both the capturer and the uploader.
 
 ## Developer
 
