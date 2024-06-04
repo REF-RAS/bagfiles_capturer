@@ -23,15 +23,15 @@ import tools.hash_tools as hash_tools
 from tools.google_drive_tools import GoogleDriveProxy
 import capturer.model as model
 from capturer.model import DAO, ASSET_FILE_MANAGER, STATE, CONFIG, SystemStates, CapturerDAO
-from capturer.dash.dashapp_top import DashAppTop
-from capturer.dash.upload_helper import process_excel_file
+from capturer.web.dashapp_top import DashAppTop
+from capturer.web.upload_helper import process_excel_file
 
 class ApplicationCoordinator(object):
     def __init__(self):
         # save the config
-        self.capturer_config:YamlConfig = CONFIG
+        self.yaml_config:YamlConfig = CONFIG
         # create lock for synchronization
-        self.state_lock = threading.Lock()
+        self.state_lock = threading.RLock()
 
         # create the stop signal handler
         signal.signal(signal.SIGINT, self.stop)
