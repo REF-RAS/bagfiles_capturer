@@ -13,6 +13,7 @@ __status__ = 'Development'
 
 # import libraries
 import sys, os, signal, time, threading, webbrowser, subprocess, traceback, croniter
+from os.path import expanduser
 from datetime import datetime
 # ros modules
 import rospy, message_filters, actionlib, rospkg
@@ -20,6 +21,7 @@ import rospy, message_filters, actionlib, rospkg
 from tools.yaml_tools import YamlConfig
 from tools.logging_tools import logger
 import tools.hash_tools as hash_tools
+import tools.file_tools as file_tools
 from tools.google_drive_tools import GoogleDriveProxy
 import capturer.model as model
 from capturer.model import DAO, ASSET_FILE_MANAGER, STATE, CONFIG, SystemStates, CapturerDAO
@@ -43,19 +45,28 @@ class ApplicationCoordinator(object):
             self.operation_mode = CONFIG.get('capturer.mode', 'web')
         ASSET_FILE_MANAGER.record_event(f'Capturer operation starts')
         ASSET_FILE_MANAGER.record_event(f'The operation model is "{self.operation_mode}"')
-        # register the callbacks (using the dash callback instead of the ros callback reduces the flickering on the web GUI)
-        model.CALLBACK_MANAGER.set_listener(model.CallbackTypes.TIMER, self._timer_callback)
+        # setup temp folder for bagfile initial location
+        self.temp_folder = os.path.join(expanduser("~"), '.bagfiles')
+        if not self.setup_temp_folder(self.temp_folder):
+            logger.warning(f'BagfileCapturer (__init__): unable to create or setup temp folder ("{self.temp_folder}")')
+            sys.exit(0)  
+    
         # setup pulling of setting excel file
         self.pull_gdrive_fileid = CONFIG.get('capturer.pull.gdrive.fileid', None)
         if self.pull_gdrive_fileid is not None:
+            # pull the schedule initially if the schedule fileid is given
+            self.retrieve_schedule()
+            # setup the schedule for pulling schedule
             schedule_spec = CONFIG.get('capturer.pull.cron.schedule', '0 * * * *')
-            self.croniter = croniter.croniter(schedule_spec, datetime.now())
+            self.the_croniter = croniter.croniter(schedule_spec, datetime.now())
             if croniter.croniter.is_valid(schedule_spec):
-                self.next_pull_datetime = self.croniter.get_next(datetime)
-                ASSET_FILE_MANAGER.record_event(f'The schedule for pulling setting is "{self.croniter.expressions}" and the next pull is at {self.next_pull_datetime}') 
+                self.next_pull_datetime = self.the_croniter.get_next(datetime)
+                ASSET_FILE_MANAGER.record_event(f'The schedule for pulling setting is "{self.the_croniter.expressions}" and the next pull is at {self.next_pull_datetime}') 
                 self.pull_excel_hash = None
             else:
                 self.pull_gdrive_fileid = None
+        # register the callbacks (using the dash callback instead of the ros callback reduces the flickering on the web GUI)
+        model.CALLBACK_MANAGER.set_listener(model.CallbackTypes.TIMER, self._timer_callback)
         # create the dash application   
         if self.operation_mode == 'web':
             self.dash_app_operator = DashAppTop()
@@ -100,25 +111,42 @@ class ApplicationCoordinator(object):
                     # if there is no scheduled capture, then check if it is time for pulling setting file                 
                     if self.pull_gdrive_fileid is not None:
                         if datetime.now() >= self.next_pull_datetime:
+                            # update the next pull time
+                            self.next_pull_datetime = self.the_croniter.get_next(datetime)
                             # if the time is reached to pull the system settings excel file
                             STATE.update(SystemStates.PULL_CONFIG) 
-                            # update the next pull time
-                            self.next_pull_datetime = self.croniter.get_next(datetime)
-                            # retrieve the system settings excel file
-                            excel_bytes = GoogleDriveProxy.download_file_with_fileid(self.pull_gdrive_fileid)
-                            if excel_bytes is not None:     
-                                excel_hash = hash_tools.hash_bytearray(excel_bytes)
-                                if self.pull_excel_hash is None or self.pull_excel_hash != excel_hash:
-                                    self.pull_excel_hash = excel_hash
-                                    error_list = process_excel_file(excel_bytes, ['Schedule', 'Rostopics'], 'Setting.xlsx', None)
-                                    ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (pull_setting_file): pulled and update settings')
-                                else:
-                                    ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (pull_setting_file): pulled the same settings and ignored')
-                            else:
-                                ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (pull_setting_file): unable to pull settings')
+                            self.retrieve_schedule()
                             STATE.update(SystemStates.READY)
             elif state == SystemStates.CAPTURING:
                 pass
+
+    # Retrieve schedule from google drive
+    def retrieve_schedule(self):
+        try:
+            # retrieve the system settings excel file
+            excel_bytes = GoogleDriveProxy.download_file_with_fileid(self.pull_gdrive_fileid)
+            if excel_bytes is not None:     
+                excel_hash = hash_tools.hash_bytearray(excel_bytes)
+                if not hasattr(self, 'pull_excel_hash') or self.pull_excel_hash is None or self.pull_excel_hash != excel_hash:
+                    self.pull_excel_hash = excel_hash
+                    error_list = process_excel_file(excel_bytes, ['Schedule', 'Rostopics', 'Accounts'], 'Setting.xlsx', None)  
+                    DAO.update_expired_schedule()
+                    ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (pull_setting_file): pulled and update settings')
+                else:
+                    ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (pull_setting_file): pulled the unchanged settings and ignored')
+            else:
+                ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (pull_setting_file): unable to pull settings')
+        except Exception as e:
+            ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (pull_setting_file): unable to pull settings due to error {e}')
+
+    # Setup a temp folder for capturing bagfile before moving to the target location
+    def setup_temp_folder(self, temp_folder):
+        try:
+            os.makedirs(temp_folder, exist_ok=True)
+            file_tools.remove_folder_content(temp_folder)
+            return True
+        except Exception as e:
+            return False
 
     # Execute a scheduled capture of bagfile using a subprocess
     def exec_scheduled_capture(self, schedule:dict):
@@ -132,8 +160,10 @@ class ApplicationCoordinator(object):
         schedule['topics_list'] = ' '.join(topics_list)
         schedule['filename'] = filename
         schedule['full_path'] = full_path
+        temp_path = os.path.join(self.temp_folder, filename)
+        schedule['temp_path'] = temp_path
         # compose the exec script based on the parameters
-        the_exec_script = ['/opt/ros/noetic/bin/rosbag', 'record', f'--duration={duration}', f'--output-name={full_path}']
+        the_exec_script = ['/opt/ros/noetic/bin/rosbag', 'record', f'--duration={duration}', f'--output-name={temp_path}']
         the_exec_script.extend(topics_list)
         schedule['exec_script'] = " ".join(the_exec_script)
         STATE.set_var('capture_info', schedule)
@@ -175,9 +205,11 @@ class ApplicationCoordinator(object):
             ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (cb_rosbag_play_completed): failed in rosbag record: {error}') 
             DAO.update_schedule_status(schedule['timestamp'], CapturerDAO.ScheduleStates.FAILED)           
         else:
-            # if there was no error, record the success status and the output bagfile information
+            # record the success status and the output bagfile information
             ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (cb_rosbag_play_completed): finished rosbag record') 
             schedule = STATE.get_var('capture_info')
+            # if there was no error, copy the bagfile to the correct place
+            os.rename(schedule['temp_path'], schedule['full_path'])
             file_size = os.stat(schedule['full_path'])
             DAO.add_bagfiles(schedule['timestamp'], schedule['duration'], schedule.get('folder', None), schedule['filename'], schedule['full_path'], file_size.st_size) 
             DAO.update_schedule_status(schedule['timestamp'], CapturerDAO.ScheduleStates.SUCCESS)

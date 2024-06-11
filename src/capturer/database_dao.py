@@ -126,12 +126,18 @@ class CapturerDAO():
         RECORDING = 1
         SUCCESS = 2
         FAILED = 3
+        EXPIRED = 4
     
     @synchronized
     def list_schedule(self):
         sql = 'SELECT S.the_date, S.the_time, S.duration, S.timestamp, S.folder, S.prefix, S.status from schedule S ORDER BY S.timestamp ASC'
         return db_tools.query(self.db_file, sql)
 
+    @synchronized
+    def list_schedule_pending(self):
+        sql = 'SELECT S.the_date, S.the_time, S.duration, S.timestamp, S.folder, S.prefix, S.status from schedule S WHERE S.status = ? ORDER BY S.timestamp ASC'
+        return db_tools.query(self.db_file, sql, (self.ScheduleStates.PENDING.value,))
+    
     @synchronized
     def update_schedule_status(self, timestamp:int, status:ScheduleStates):
         with db_tools.create_connection(self.db_file) as conn:
@@ -140,8 +146,15 @@ class CapturerDAO():
             conn.commit()
     
     @synchronized
+    def update_expired_schedule(self):    
+        with db_tools.create_connection(self.db_file) as conn:
+            c = conn.cursor()
+            c.execute('UPDATE schedule SET status = ? WHERE DATETIME(timestamp, "unixepoch", "localtime") < DATETIME("now", "localtime", "-1 minutes") ', (self.ScheduleStates.EXPIRED.value,))
+            conn.commit()        
+    
+    @synchronized
     def query_schedule(self, status:ScheduleStates):
-        sql = 'SELECT * FROM schedule S WHERE S.status = ? AND DATETIME(S.timestamp, "unixepoch", "localtime") BETWEEN DATETIME("now", "localtime", "-5 minutes") AND DATETIME("now", "localtime") LIMIT 1'
+        sql = 'SELECT * FROM schedule S WHERE S.status = ? AND DATETIME(S.timestamp, "unixepoch", "localtime") BETWEEN DATETIME("now", "localtime", "-1 minutes") AND DATETIME("now", "localtime") LIMIT 1'
         return db_tools.query_for_dict(self.db_file, sql, (status.value,))        
 
     ##### --- Table rostopics

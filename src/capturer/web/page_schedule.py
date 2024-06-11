@@ -65,7 +65,7 @@ class SetupPage():
         self._datatable = dash_table.DataTable(id='schedule_list_table')
 
         self._database_panel = html.Div([
-            html.H4(dbc.Badge('CURRENT SCHEDULE', className='ms-1 me-2', color='white', text_color='secondary')),
+            html.H4(dbc.Badge('PENDING CAPTURE SCHEDULE', className='ms-1 me-2', color='white', text_color='secondary')),
             dbc.Row([self._datatable], className='mx-auto col-12'),
             ], className='col-10 mx-auto text-center border mt-2')
 
@@ -103,7 +103,7 @@ class SetupPage():
     # - the dataframe containing the schedule
     def _define_model(self):
         try:
-            model = DAO.list_schedule()
+            model = DAO.list_schedule_pending()
             model = model.drop(['the_date', 'the_time'], axis=1)
             model['timestamp'] = model['timestamp'].apply(type_tools.timestamp_to_datestr)
             model['status'] = model['status'].apply(lambda x: CapturerDAO.ScheduleStates(x).name)
