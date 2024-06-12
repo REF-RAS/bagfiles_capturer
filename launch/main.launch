@@ -5,7 +5,7 @@
         <!-- Launch the gdrive uploader -->
         <group if="$(arg run_uploader)"> 
             <param name="mode" type="string" value="$(arg mode)" /> 
-            <node pkg="gdrive_uploader" type="run.py" name="gdrive_uploader_node" output="screen" respawn="true" >
+            <node pkg="openstack_object_uploader" type="run.py" name="openstack_uploader_node" output="screen" respawn="true" >
             </node>
         </group>
         <!-- Launch the bagfiles capturer -->

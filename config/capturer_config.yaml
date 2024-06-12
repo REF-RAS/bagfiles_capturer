@@ -1,7 +1,7 @@
 # YAML file for Bagfile Capturer
 ---
 # Operation Mode
-capturer.mode: web # web or headless
+capturer.mode: headless # web or headless
 # Dash Agent (Capturer) setting
 capturer.web.host: 0.0.0.0
 capturer.web.port: 8060
@@ -9,15 +9,15 @@ capturer.web.debug.mode: False
 capturer.web.launch_browser: False
 capturer.web.auth: False   # Authentication required if web mode and at least one account has been added
 # Setting pull
-capturer.pull.gdrive.fileid: null  # null if no pull schedule
+capturer.pull.gdrive.fileid: 1LJ5n6NY6qkohogH46XYdJBMesqNQCSus  # null if no pull setting
 capturer.pull.cron.schedule: '*/1 * * * *'
 # Main system timers for the capturer implemented by Dash
 capturer.system.timer: 1  # seconds
 capturer.console.refresh: 5  # seconds
 # The default rostopics for bagfile capture
-capturer.rostopics.default:                       # This is override by the Rostopics table in the Schedule file
-  - /armcam/infra1/image_rect_raw/compressed
-  - /cuttercam/infra1/image_rect_raw/compressed
+capturer.rostopics.default:
+  - /oak/rgb/image_raw
+  - /oak/rgb/image_raw/compressed
 # The output folder for captured bagfiles
-capturer.filestore: /home/qcr/Bagfiles
+capturer.filestore: /home/qcr/project_ws/src/data
 capturer.logfilestore: Logfiles
