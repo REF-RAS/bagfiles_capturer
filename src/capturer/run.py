@@ -12,7 +12,7 @@ __email__ = 'ak.lui@qut.edu.au'
 __status__ = 'Development'
 
 # import libraries
-import sys, os, signal, time, threading, webbrowser, subprocess, traceback, croniter
+import sys, os, shutil, signal, time, threading, webbrowser, subprocess, traceback, croniter
 from os.path import expanduser
 from datetime import datetime
 # ros modules
@@ -133,7 +133,7 @@ class ApplicationCoordinator(object):
                     DAO.update_expired_schedule()
                     ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (pull_setting_file): pulled and update settings')
                 else:
-                    ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (pull_setting_file): pulled the unchanged settings and ignored')
+                    ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (pull_setting_file): pulled the unchanged settings and ignored', no_logfile=True)
             else:
                 ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (pull_setting_file): unable to pull settings')
         except Exception as e:
@@ -209,10 +209,16 @@ class ApplicationCoordinator(object):
             ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (cb_rosbag_play_completed): finished rosbag record') 
             schedule = STATE.get_var('capture_info')
             # if there was no error, copy the bagfile to the correct place
-            os.rename(schedule['temp_path'], schedule['full_path'])
-            file_size = os.stat(schedule['full_path'])
-            DAO.add_bagfiles(schedule['timestamp'], schedule['duration'], schedule.get('folder', None), schedule['filename'], schedule['full_path'], file_size.st_size) 
-            DAO.update_schedule_status(schedule['timestamp'], CapturerDAO.ScheduleStates.SUCCESS)
+            try:
+                # os.rename(schedule['temp_path'], schedule['full_path'])
+                shutil.copy(schedule['temp_path'], schedule['full_path'])
+                os.remove(schedule['temp_path'])
+                file_size = os.stat(schedule['full_path'])
+                DAO.add_bagfiles(schedule['timestamp'], schedule['duration'], schedule.get('folder', None), schedule['filename'], schedule['full_path'], file_size.st_size) 
+                DAO.update_schedule_status(schedule['timestamp'], CapturerDAO.ScheduleStates.SUCCESS)
+            except Exception as e:
+                ASSET_FILE_MANAGER.record_event(f'BagfileCapturer (cb_rosbag_play_completed): failed in saving rosbag file: {e}') 
+                DAO.update_schedule_status(schedule['timestamp'], CapturerDAO.ScheduleStates.FAILED)                  
         # change the state back to READY
         STATE.update(SystemStates.READY)
 

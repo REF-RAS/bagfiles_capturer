@@ -59,7 +59,7 @@ class AssetFileManager():
         os.makedirs(full_path, exist_ok=True)
         return full_path
     
-    def record_event(self, message) -> None:
+    def record_event(self, message, no_logfile=False, no_screen=False) -> None:
         """ An utility for saving the message to a log file and as the same time to the logger
 
         :param message: The message to be recorded, type str
@@ -69,9 +69,11 @@ class AssetFileManager():
             timestr = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
             log_file_path = os.path.join(self.logfiles_folder, f'{datestr}.txt')
             message = timestr + ": " + message
-            with open(log_file_path, 'a') as myfile:
-                myfile.write(message + '\n')
-            logger.info(message)
+            if not no_logfile:
+                with open(log_file_path, 'a') as myfile:
+                    myfile.write(message + '\n')
+            if not no_screen:
+                logger.info(message)
 
 # The global variable to be imported by other modules
 ASSET_FILE_MANAGER = AssetFileManager()
