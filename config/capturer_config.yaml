@@ -10,13 +10,12 @@ capturer.web.launch_browser: False
 capturer.web.auth: False   # Authentication required if web mode and at least one account has been added
 # Setting pull
 capturer.pull.gdrive.fileid: 1LJ5n6NY6qkohogH46XYdJBMesqNQCSus  # null if no pull setting
-capturer.pull.cron.schedule: '*/1 * * * *'
+capturer.pull.cron.schedule: '*/5 * * * *'
 # Main system timers for the capturer implemented by Dash
 capturer.system.timer: 1  # seconds
 capturer.console.refresh: 5  # seconds
 # The default rostopics for bagfile capture
 capturer.rostopics.default:
-  - /oak/rgb/image_raw
   - /oak/rgb/image_raw/compressed
 # The output folder for captured bagfiles
 capturer.filestore: /home/qcr/project_ws/src/data

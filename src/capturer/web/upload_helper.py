@@ -27,6 +27,7 @@ def process_uploaded_excel_file(contents, sheet_list=None, filename=None, last_m
 def process_excel_file(decoded, sheet_list=None, filename=None, last_modified=None):
     error_list = []
     processor = {'Schedule': process_schedule, 'Accounts': process_account, 'Rostopics': process_rostopics}
+    k = ''
     try:
         suffix = file_tools.get_suffix(filename, include_period=False)
         if suffix in ['xls', 'xlsx']:
