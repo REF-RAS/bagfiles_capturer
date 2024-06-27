@@ -18,5 +18,5 @@ capturer.console.refresh: 5  # seconds
 capturer.rostopics.default:
   - /oak/rgb/image_raw/compressed
 # The output folder for captured bagfiles
-capturer.filestore: /home/qcr/project_ws/src/data
+capturer.filestore: /home/qcr/project_ws/src/data/bagfiles
 capturer.logfilestore: Logfiles
